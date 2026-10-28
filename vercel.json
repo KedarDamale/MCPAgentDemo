@@ -9,7 +9,7 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 60,
-      "includeFiles": "data/pharma_sales_sample.duckdb"
+      "includeFiles": "data/pharma_sales.duckdb"
     }
   }
 }

@@ -2,5 +2,3 @@
 .git
 .pytest_cache
 __pycache__
-data/*.parquet
-data/pharma_sales.duckdb
