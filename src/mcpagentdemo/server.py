@@ -1700,9 +1700,9 @@ async def forecast_numeric_series(
 
 @mcp.tool()
 async def predict_numeric_regression(
+    predictor_columns: list[str] = Field(..., description="One to eight numeric predictor columns known at prediction time."),
     table_name: str = Field("fact_sales", description="Catalog table or view containing a numeric outcome, numeric predictors, and a date column."),
     target_column: str = Field("gross_profit_inr", description="Numeric outcome to predict on later-dated holdout rows."),
-    predictor_columns: list[str] = Field(..., description="One to eight numeric predictor columns known at prediction time."),
     date_column: str = Field("invoice_date", description="DATE or TIMESTAMP used to split earlier training rows from later holdout rows."),
     sample_per_month: int = Field(500, description="Maximum deterministic rows sampled per month (100-2000).", ge=100, le=2000),
     top_errors: int = Field(20, description="Number of largest absolute holdout errors to return (1-100).", ge=1, le=100),

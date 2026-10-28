@@ -1,7 +1,7 @@
 """FastAPI/Starlette application entrypoint for Vercel Serverless and local uvicorn hosting."""
 
-import os
 from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 from mcpagentdemo.server import mcp
 
@@ -22,6 +22,12 @@ class UniversalMCPMiddleware:
         self.inner = inner
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and scope.get("path") == "/" and scope.get("method") == "GET":
+            accept = dict(scope.get("headers", [])).get(b"accept", b"")
+            if b"text/event-stream" not in accept:
+                response = JSONResponse({"status": "healthy", "mcp_endpoint": "/mcp"})
+                await response(scope, receive, send)
+                return
         if scope["type"] in ("http", "websocket"):
             path = scope.get("path", "")
             # Strip Vercel function filename prefixes

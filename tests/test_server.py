@@ -1,4 +1,6 @@
 import pytest
+import json
+from fastmcp import Client
 from starlette.testclient import TestClient
 from mcpagentdemo.app import app
 from mcpagentdemo.server import mcp
@@ -61,6 +63,16 @@ def test_resources_registered():
     assert "pharma://summary/monthly" in uris
     assert "pharma://design/color-themes" in uris
 
+def test_numeric_regression_tool_schema():
+    import asyncio
+    tools = asyncio.run(mcp.list_tools())
+    tool = next(tool for tool in tools if tool.name == "predict_numeric_regression")
+    schema = tool.parameters
+    assert schema["required"] == ["predictor_columns"]
+    assert schema["properties"]["predictor_columns"]["type"] == "array"
+    assert schema["properties"]["table_name"]["default"] == "fact_sales"
+    assert schema["properties"]["target_column"]["default"] == "gross_profit_inr"
+
 def test_prompts_registered():
     import asyncio
     prompts = asyncio.run(mcp.list_prompts())
@@ -73,9 +85,16 @@ def test_prompts_registered():
 
 def test_generate_chart_ready_dataset():
     import asyncio
-    res = asyncio.run(mcp.call_tool("generate_chart_ready_dataset", {
-        "chart_type": "bar",
-        "x_dimension": "therapeutic_area",
-        "y_metric": "net_sales_inr"
-    }))
-    assert res is not None
+    async def generate_chart():
+        async with Client(mcp) as client:
+            return await client.call_tool("generate_chart_ready_dataset", {
+                "chart_type": "bar",
+                "x_dimension": "therapeutic_area",
+                "y_metric": "net_sales_inr"
+            })
+    res = asyncio.run(generate_chart())
+    assert not res.is_error
+    data = json.loads(res.content[0].text)
+    assert data["selected_chart_type"] == "bar"
+    assert data["categories"]
+    assert len(data["categories"]) == len(data["series"][0]["data"])
