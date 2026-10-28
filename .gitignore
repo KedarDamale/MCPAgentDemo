@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.vercel/
+
+# Keep data/ directory structure and sample duckdb for Vercel, ignore large 483MB duckdb
+data/pharma_sales.duckdb
