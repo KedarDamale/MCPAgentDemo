@@ -1,39 +1,41 @@
 """FastAPI/Starlette application entrypoint for Vercel Serverless and local uvicorn hosting."""
 
 import os
-from starlette.applications import Starlette
-from starlette.responses import JSONResponse
-from starlette.routing import Route, Mount
 from starlette.middleware.cors import CORSMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
 from mcpagentdemo.server import mcp
 
-# Create the FastMCP HTTP app with Streamable HTTP & JSON support
-mcp_app = mcp.http_app(path="/mcp")
+# Create the FastMCP HTTP app configured at root path '/'
+mcp_app = mcp.http_app(path="/")
 
-async def root_handler(request):
-    """Health check and server info."""
-    return JSONResponse({
-        "status": "healthy",
-        "name": "PharmaSales Analytics FastMCP Server",
-        "protocol": "Model Context Protocol (MCP)",
-        "mcp_endpoint": "/mcp",
-        "docs": "Connect to /mcp with any MCP-compatible client or agent."
-    })
-
-# Main Starlette application wrapping MCP with lifespan
-app = Starlette(
-    routes=[
-        Route("/", endpoint=root_handler, methods=["GET"]),
-        Mount("", app=mcp_app)
-    ],
-    lifespan=mcp_app.lifespan
-)
-
-# Enable CORS for browser agents / web clients
-app.add_middleware(
+mcp_app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+class UniversalMCPMiddleware:
+    """Normalize Vercel rewrites and prefixes so requests to /, /mcp, /api/index.py, etc. all reach FastMCP."""
+    def __init__(self, inner: ASGIApp):
+        self.inner = inner
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] in ("http", "websocket"):
+            path = scope.get("path", "")
+            # Strip Vercel function filename prefixes
+            for prefix in ("/api/index.py", "/api/index"):
+                if path.startswith(prefix):
+                    path = path[len(prefix):]
+                    break
+            # Strip /mcp mount prefix
+            if path.startswith("/mcp"):
+                path = path[4:]
+            if not path.startswith("/"):
+                path = "/" + path
+            scope["path"] = path
+
+        await self.inner(scope, receive, send)
+
+app = UniversalMCPMiddleware(mcp_app)
